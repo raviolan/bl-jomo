@@ -1,3 +1,4 @@
+import { useMenu } from '@/app/context/MenuContext';
 import dayjs from 'dayjs';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -33,6 +34,7 @@ type GroupedEvents = {
 
 export default function CategoriesScreen() {
     const router = useRouter();
+    const { toggleMenu } = useMenu();
     const [groupedByCategory, setGroupedByCategory] = useState<GroupedEvents>({});
     const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({});
 
@@ -81,7 +83,13 @@ export default function CategoriesScreen() {
     return (
         <ImageBackground source={bgImage} style={styles.background} resizeMode="cover">
             <ScrollView contentContainerStyle={styles.container}>
-                <Text style={styles.title}>Events by Category</Text>
+                <View style={styles.header}>
+                    <Text style={styles.title}>Events by Category</Text>
+                    <TouchableOpacity onPress={toggleMenu}>
+                        <Text style={styles.menuIcon}>☰</Text>
+                    </TouchableOpacity>
+                </View>
+
                 {Object.entries(groupedByCategory)
                     .sort(([a], [b]) => a.localeCompare(b))
                     .map(([category, events]) => (
@@ -103,8 +111,17 @@ const styles = StyleSheet.create({
     background: {
         flex: 1,
     },
-    container: {
+    header: {
         paddingTop: 60,
+        paddingHorizontal: 20,
+        marginBottom: 10,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: 'transparent',
+    },
+    container: {
+        paddingTop: 5,
         paddingHorizontal: 20,
         paddingBottom: 100,
         backgroundColor: 'transparent',
@@ -112,8 +129,12 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 28,
         fontWeight: 'bold',
-        marginBottom: 30,
         color: '#222',
+    },
+    menuIcon: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#000',
     },
     section: {
         marginBottom: 40,

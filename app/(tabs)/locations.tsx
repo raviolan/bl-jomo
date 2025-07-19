@@ -1,3 +1,4 @@
+import { useMenu } from '@/app/context/MenuContext';
 import dayjs from 'dayjs';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -35,6 +36,7 @@ export default function LocationsScreen() {
     const router = useRouter();
     const [groupedByLocation, setGroupedByLocation] = useState<GroupedEvents>({});
     const [expandedLocations, setExpandedLocations] = useState<{ [location: string]: boolean }>({});
+    const { toggleMenu } = useMenu();
 
     useEffect(() => {
         const events = eventsRaw
@@ -81,11 +83,20 @@ export default function LocationsScreen() {
     return (
         <ImageBackground source={bgImage} style={styles.background} resizeMode="cover">
             <ScrollView contentContainerStyle={styles.container}>
-                <Text style={styles.title}>Events by Location</Text>
+                <View style={styles.header}>
+                    <Text style={styles.title}>Events by Location</Text>
+                    <TouchableOpacity onPress={toggleMenu}>
+                        <Text style={styles.menuIcon}>☰</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity onPress={() => router.push('/')} style={{ marginBottom: 16 }}>
+                    <Text style={{ fontSize: 16, color: '#007AFF' }}>← Back to Home</Text>
+                </TouchableOpacity>
+
                 {Object.entries(groupedByLocation)
                     .sort(([a], [b]) => a.localeCompare(b))
                     .map(([location, events]) => (
-
                         <View key={location} style={styles.section}>
                             <TouchableOpacity onPress={() => toggleLocation(location)}>
                                 <Text style={styles.sectionHeader}>
@@ -104,8 +115,17 @@ const styles = StyleSheet.create({
     background: {
         flex: 1,
     },
-    container: {
+    header: {
         paddingTop: 60,
+        paddingHorizontal: 20,
+        marginBottom: 10,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: 'transparent',
+    },
+    container: {
+        paddingTop: 5,
         paddingHorizontal: 20,
         paddingBottom: 100,
         backgroundColor: 'transparent',
@@ -113,8 +133,12 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 28,
         fontWeight: 'bold',
-        marginBottom: 30,
         color: '#222',
+    },
+    menuIcon: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#000',
     },
     section: {
         marginBottom: 40,
