@@ -38,6 +38,7 @@ export default function MenuDrawer() {
                         <TouchableOpacity onPress={() => navigate('search')} style={styles.item}>
                             <Text style={styles.text}>🔎 Search</Text>
                         </TouchableOpacity>
+
                         <TouchableOpacity onPress={() => navigate('locations')} style={styles.item}>
                             <Text style={styles.text}>📍 Locations</Text>
                         </TouchableOpacity>

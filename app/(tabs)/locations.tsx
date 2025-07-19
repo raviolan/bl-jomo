@@ -1,14 +1,16 @@
 import { useMenu } from '@/app/context/MenuContext';
 import dayjs from 'dayjs';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     ImageBackground,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
+    UIManager,
     View,
+    findNodeHandle,
 } from 'react-native';
 import eventsRaw from '../../assets/data/events.json';
 import bgImage from '../../assets/images/bg.jpg';
@@ -38,6 +40,9 @@ export default function LocationsScreen() {
     const [expandedLocations, setExpandedLocations] = useState<{ [location: string]: boolean }>({});
     const { toggleMenu } = useMenu();
 
+    const scrollViewRef = useRef<ScrollView>(null);
+    const sectionRefs = useRef<{ [letter: string]: View | null }>({});
+
     useEffect(() => {
         const events = eventsRaw
             .map(e => ({
@@ -55,6 +60,19 @@ export default function LocationsScreen() {
 
         setGroupedByLocation(grouped);
     }, []);
+
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖÆ'.split('');
+
+    const scrollToLetter = (letter: string) => {
+        const ref = sectionRefs.current[letter];
+        const nodeHandle = ref && findNodeHandle(ref);
+
+        if (nodeHandle && scrollViewRef.current) {
+            UIManager.measure(nodeHandle, (_x, _y, _w, _h, _px, py) => {
+                scrollViewRef.current?.scrollTo({ y: py, animated: true });
+            });
+        }
+    };
 
     const toggleLocation = (location: string) => {
         setExpandedLocations(prev => ({
@@ -80,33 +98,60 @@ export default function LocationsScreen() {
         </TouchableOpacity>
     );
 
+    const groupedByLetter: { [letter: string]: [string, Event[]][] } = {};
+    Object.entries(groupedByLocation).forEach(([location, events]) => {
+        const letter = location.charAt(0).toUpperCase();
+        if (!groupedByLetter[letter]) groupedByLetter[letter] = [];
+        groupedByLetter[letter].push([location, events]);
+    });
+
     return (
         <ImageBackground source={bgImage} style={styles.background} resizeMode="cover">
-            <ScrollView contentContainerStyle={styles.container}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>Events by Location</Text>
-                    <TouchableOpacity onPress={toggleMenu}>
-                        <Text style={styles.menuIcon}>☰</Text>
-                    </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+                <View style={styles.stickyAlphabet}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        {alphabet.map(letter => (
+                            <TouchableOpacity key={letter} onPress={() => scrollToLetter(letter)}>
+                                <Text style={styles.alphabetLetter}>{letter}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                 </View>
 
-                <TouchableOpacity onPress={() => router.push('/')} style={{ marginBottom: 16 }}>
-                    <Text style={{ fontSize: 16, color: '#007AFF' }}>← Back to Home</Text>
-                </TouchableOpacity>
+                <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
+                    <View style={styles.header}>
+                        <Text style={styles.title}>Events by Location</Text>
+                        <TouchableOpacity onPress={toggleMenu}>
+                            <Text style={styles.menuIcon}>☰</Text>
+                        </TouchableOpacity>
+                    </View>
 
-                {Object.entries(groupedByLocation)
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([location, events]) => (
-                        <View key={location} style={styles.section}>
-                            <TouchableOpacity onPress={() => toggleLocation(location)}>
-                                <Text style={styles.sectionHeader}>
-                                    {expandedLocations[location] ? '▼' : '▶'} {location}
-                                </Text>
-                            </TouchableOpacity>
-                            {expandedLocations[location] && events.map(renderEventCard)}
-                        </View>
-                    ))}
-            </ScrollView>
+                    {Object.entries(groupedByLetter)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([letter, locations]) => (
+                            <View
+                                key={letter}
+                                ref={ref => {
+                                    sectionRefs.current[letter] = ref;
+                                }}
+                                style={styles.section}
+                            >
+                                {locations
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([location, events]) => (
+                                        <View key={location}>
+                                            <TouchableOpacity onPress={() => toggleLocation(location)}>
+                                                <Text style={styles.sectionHeader}>
+                                                    {expandedLocations[location] ? '▼' : '▶'} {location}
+                                                </Text>
+                                            </TouchableOpacity>
+                                            {expandedLocations[location] && events.map(renderEventCard)}
+                                        </View>
+                                    ))}
+                            </View>
+                        ))}
+                </ScrollView>
+            </View>
         </ImageBackground>
     );
 }
@@ -143,6 +188,18 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: 'bold',
         color: '#000',
+    },
+    stickyAlphabet: {
+        paddingTop: 70,
+        paddingVertical: 10,
+        backgroundColor: 'rgba(255,255,255,0.6)',
+        zIndex: 10,
+    },
+    alphabetLetter: {
+        marginHorizontal: 6,
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#007AFF',
     },
     section: {
         marginBottom: 40,

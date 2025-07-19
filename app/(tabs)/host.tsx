@@ -1,14 +1,16 @@
 import { useMenu } from '@/app/context/MenuContext';
 import dayjs from 'dayjs';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     ImageBackground,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
+    UIManager,
     View,
+    findNodeHandle,
 } from 'react-native';
 import eventsRaw from '../../assets/data/events.json';
 import bgImage from '../../assets/images/bg.jpg';
@@ -36,7 +38,8 @@ export default function HostsScreen() {
     const router = useRouter();
     const { toggleMenu } = useMenu();
     const [groupedByHost, setGroupedByHost] = useState<GroupedEvents>({});
-    const [expandedHosts, setExpandedHosts] = useState<{ [key: string]: boolean }>({});
+    const scrollViewRef = useRef<ScrollView>(null);
+    const sectionRefs = useRef<{ [letter: string]: View | null }>({});
 
     useEffect(() => {
         const events = eventsRaw
@@ -56,11 +59,18 @@ export default function HostsScreen() {
         setGroupedByHost(grouped);
     }, []);
 
-    const toggleHost = (host: string) => {
-        setExpandedHosts(prev => ({
-            ...prev,
-            [host]: !prev[host],
-        }));
+    const scrollToLetter = (letter: string) => {
+        const ref = sectionRefs.current[letter];
+        const scrollResponder = scrollViewRef.current?.getScrollResponder();
+
+        const nodeHandle = ref && findNodeHandle(ref);
+
+        if (nodeHandle && scrollViewRef.current) {
+            UIManager.measure(nodeHandle, (_x, _y, _w, _h, _px, py) => {
+                scrollViewRef.current?.scrollTo({ y: py, animated: true });
+            });
+        }
+
     };
 
     const renderEventCard = (event: Event) => (
@@ -80,29 +90,59 @@ export default function HostsScreen() {
         </TouchableOpacity>
     );
 
+    const groupedByLetter: { [letter: string]: [string, Event[]][] } = {};
+    Object.entries(groupedByHost).forEach(([host, events]) => {
+        const letter = host.charAt(0).toUpperCase();
+        if (!groupedByLetter[letter]) groupedByLetter[letter] = [];
+        groupedByLetter[letter].push([host, events]);
+    });
+
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖÆ'.split('');
+
     return (
         <ImageBackground source={bgImage} style={styles.background} resizeMode="cover">
-            <ScrollView contentContainerStyle={styles.container}>
-                <View style={styles.header}>
-                    <Text style={styles.title}>Events by Host</Text>
-                    <TouchableOpacity onPress={toggleMenu}>
-                        <Text style={styles.menuIcon}>☰</Text>
-                    </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+                <View style={styles.stickyAlphabet}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        {alphabet.map(letter => (
+                            <TouchableOpacity key={letter} onPress={() => scrollToLetter(letter)}>
+                                <Text style={styles.alphabetLetter}>{letter}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                 </View>
 
-                {Object.entries(groupedByHost)
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([host, events]) => (
-                        <View key={host} style={styles.section}>
-                            <TouchableOpacity onPress={() => toggleHost(host)}>
-                                <Text style={styles.sectionHeader}>
-                                    {expandedHosts[host] ? '▼' : '▶'} {host}
-                                </Text>
-                            </TouchableOpacity>
-                            {expandedHosts[host] && events.map(renderEventCard)}
-                        </View>
-                    ))}
-            </ScrollView>
+                <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
+                    <View style={styles.header}>
+                        <Text style={styles.title}>Events by Host</Text>
+                        <TouchableOpacity onPress={toggleMenu}>
+                            <Text style={styles.menuIcon}>☰</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {Object.entries(groupedByLetter)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([letter, hosts]) => (
+                            <View
+                                key={letter}
+                                style={styles.section}
+                                ref={ref => {
+                                    sectionRefs.current[letter] = ref;
+                                }}
+                            >
+                                <Text style={styles.sectionHeader}>{letter}</Text>
+                                {hosts
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([host, events]) => (
+                                        <View key={host}>
+                                            <Text style={styles.subHeader}>{host}</Text>
+                                            {events.map(renderEventCard)}
+                                        </View>
+                                    ))}
+                            </View>
+                        ))}
+                </ScrollView>
+            </View>
         </ImageBackground>
     );
 }
@@ -140,11 +180,23 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: '#000',
     },
+    stickyAlphabet: {
+        paddingTop: 70,
+        paddingVertical: 10,
+        backgroundColor: 'rgba(255,255,255,0.6)',
+        zIndex: 10,
+    },
+    alphabetLetter: {
+        marginHorizontal: 6,
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#007AFF',
+    },
     section: {
         marginBottom: 40,
     },
     sectionHeader: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: '700',
         marginBottom: 12,
         paddingVertical: 8,
@@ -153,6 +205,12 @@ const styles = StyleSheet.create({
         textShadowColor: 'rgba(0, 0, 0, 0.4)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 2,
+    },
+    subHeader: {
+        fontSize: 16,
+        fontWeight: '600',
+        marginVertical: 4,
+        color: '#000',
     },
     card: {
         padding: 16,
