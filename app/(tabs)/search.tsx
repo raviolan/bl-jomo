@@ -99,6 +99,10 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
     background: {
         flex: 1,
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+        justifyContent: 'space-between',
     },
     container: {
         paddingTop: 60,

@@ -7,7 +7,6 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, View } from 'react-native';
 
-// 👇 Import your new context
 import { MenuProvider } from '@/app/context/MenuContext';
 import MenuDrawer from '@/components/ui/MenuDrawer';
 
