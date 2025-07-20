@@ -100,7 +100,7 @@ export default function TodayEvents() {
       setOtherFutureEvents(grouped);
       setExpandedSections({ [tomorrow.format('YYYY-MM-DD')]: true });
 
-      if (todayList.length > 0) setTitle("Welcome To Borderland");
+      if (todayList.length > 0) setTitle("Welcome To Borderland🔥");
       else if (tomorrowList.length > 0) setTitle("Tomorrow's Events");
       else setTitle("Upcoming Events");
 
