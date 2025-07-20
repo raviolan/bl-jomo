@@ -123,29 +123,49 @@ export default function LocationsScreen() {
 
             {Object.entries(groupedByLetter)
                 .sort(([a], [b]) => a.localeCompare(b))
-                .map(([letter, locations]) => (
-                    <View
-                        key={letter}
-                        ref={ref => {
-                            sectionRefs.current[letter] = ref;
-                        }}
-                        style={styles.section}
-                        {...(Platform.OS === 'web' ? { id: `section-${letter}` } : {})}
-                    >
-                        {locations
-                            .sort(([a], [b]) => a.localeCompare(b))
-                            .map(([location, events]) => (
-                                <View key={location}>
-                                    <TouchableOpacity onPress={() => toggleLocation(location)}>
-                                        <Text style={styles.sectionHeader}>
-                                            {expandedLocations[location] ? '▼' : '▶'} {location}
-                                        </Text>
-                                    </TouchableOpacity>
-                                    {expandedLocations[location] && events.map(renderEventCard)}
-                                </View>
-                            ))}
-                    </View>
-                ))}
+                .map(([letter, locations]) => {
+                    if (Platform.OS === 'web') {
+                        return (
+                            <div key={letter} id={`section-${letter}`} style={styles.section as any}>
+                                {locations
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([location, events]) => (
+                                        <View key={location}>
+                                            <TouchableOpacity onPress={() => toggleLocation(location)}>
+                                                <Text style={styles.sectionHeader}>
+                                                    {expandedLocations[location] ? '▼' : '▶'} {location}
+                                                </Text>
+                                            </TouchableOpacity>
+                                            {expandedLocations[location] && events.map(renderEventCard)}
+                                        </View>
+                                    ))}
+                            </div>
+                        );
+                    } else {
+                        return (
+                            <View
+                                key={letter}
+                                ref={(ref: any) => {
+                                    sectionRefs.current[letter] = ref;
+                                }}
+                                style={styles.section}
+                            >
+                                {locations
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([location, events]) => (
+                                        <View key={location}>
+                                            <TouchableOpacity onPress={() => toggleLocation(location)}>
+                                                <Text style={styles.sectionHeader}>
+                                                    {expandedLocations[location] ? '▼' : '▶'} {location}
+                                                </Text>
+                                            </TouchableOpacity>
+                                            {expandedLocations[location] && events.map(renderEventCard)}
+                                        </View>
+                                    ))}
+                            </View>
+                        );
+                    }
+                })}
         </>
     );
 
@@ -154,7 +174,7 @@ export default function LocationsScreen() {
             <View style={{ flex: 1 }}>
                 <View style={styles.stickyAlphabet}>
                     <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        {alphabet.map(letter => (
+                        {alphabet.map((letter: string) => (
                             <TouchableOpacity key={letter} onPress={() => scrollToLetter(letter)}>
                                 <Text style={styles.alphabetLetter}>{letter}</Text>
                             </TouchableOpacity>
