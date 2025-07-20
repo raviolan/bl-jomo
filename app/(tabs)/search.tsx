@@ -1,7 +1,12 @@
+import { getLikedEvents, toggleLikedEvent } from '@/app/context/likeStorage'; // ✅ Add this
+import heartFilled from '../../assets/icons/heart-filled.png'; // ✅ Add this
+import heartOutline from '../../assets/icons/heart-outline.png'; // ✅ Add this
+
 import { useMenu } from '@/app/context/MenuContext';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+    Image,
     ImageBackground,
     ScrollView,
     StyleSheet,
@@ -31,8 +36,17 @@ type Event = {
 export default function SearchScreen() {
     const [query, setQuery] = useState('');
     const [filtered, setFiltered] = useState<Event[]>([]);
+    const [likedIds, setLikedIds] = useState<string[]>([]); // ✅ Like state
     const router = useRouter();
     const { toggleMenu } = useMenu();
+
+    useEffect(() => {
+        const loadLikes = async () => {
+            const ids = await getLikedEvents();
+            setLikedIds(ids);
+        };
+        loadLikes();
+    }, []);
 
     useEffect(() => {
         if (!query.trim()) {
@@ -50,22 +64,41 @@ export default function SearchScreen() {
         setFiltered(result);
     }, [query]);
 
-    const renderCard = (event: Event) => (
-        <TouchableOpacity
-            key={event.id}
-            style={styles.card}
-            onPress={() =>
-                router.push({
-                    pathname: '/event/[id]',
-                    params: { id: event.id },
-                })
-            }
-        >
-            <Text style={styles.eventTitle}>{event.event}</Text>
-            <Text style={styles.eventDetail}>{event.date} | {event.startTime}</Text>
-            <Text style={styles.eventDetail}>{event.location}</Text>
-        </TouchableOpacity>
-    );
+    const toggleLike = async (id: string) => {
+        await toggleLikedEvent(id);
+        const updated = await getLikedEvents();
+        setLikedIds(updated);
+    };
+
+    const renderCard = (event: Event) => {
+        const isLiked = likedIds.includes(event.id); // ✅ Check liked state
+
+        return (
+            <View key={event.id} style={styles.card}>
+                <TouchableOpacity
+                    onPress={() =>
+                        router.push({
+                            pathname: '/event/[id]',
+                            params: { id: event.id },
+                        })
+                    }
+                >
+                    <Text style={styles.eventTitle}>{event.event}</Text>
+                    <Text style={styles.eventDetail}>{event.date} | {event.startTime}</Text>
+                    <Text style={styles.eventDetail}>{event.location}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    onPress={() => toggleLike(event.id)}
+                    style={styles.heartButton}
+                >
+                    <Image
+                        source={isLiked ? heartFilled : heartOutline}
+                        style={styles.heartIcon}
+                    />
+                </TouchableOpacity>
+            </View>
+        );
+    };
 
     return (
         <ImageBackground source={bgImage} style={styles.background} resizeMode="cover">
@@ -137,6 +170,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 4,
+        position: 'relative', // ✅ For heart icon positioning
     },
     eventTitle: {
         fontSize: 18,
@@ -164,5 +198,16 @@ const styles = StyleSheet.create({
         fontSize: 26,
         color: '#000',
         fontWeight: '600',
+    },
+    heartButton: {
+        position: 'absolute',
+        bottom: 10,
+        right: 10,
+        padding: 5,
+    },
+    heartIcon: {
+        width: 24,
+        height: 24,
+        resizeMode: 'contain',
     },
 });
