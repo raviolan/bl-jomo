@@ -3,14 +3,15 @@ import dayjs from 'dayjs';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
+    findNodeHandle,
     ImageBackground,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     UIManager,
     View,
-    findNodeHandle,
 } from 'react-native';
 import eventsRaw from '../../assets/data/events.json';
 import bgImage from '../../assets/images/bg.jpg';
@@ -38,7 +39,7 @@ export default function HostsScreen() {
     const router = useRouter();
     const { toggleMenu } = useMenu();
     const [groupedByHost, setGroupedByHost] = useState<GroupedEvents>({});
-    const scrollViewRef = useRef<ScrollView>(null);
+    const scrollViewRef = useRef<any>(null);
     const sectionRefs = useRef<{ [letter: string]: View | null }>({});
 
     useEffect(() => {
@@ -59,18 +60,23 @@ export default function HostsScreen() {
         setGroupedByHost(grouped);
     }, []);
 
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖÆ'.split('');
+
     const scrollToLetter = (letter: string) => {
         const ref = sectionRefs.current[letter];
-        const scrollResponder = scrollViewRef.current?.getScrollResponder();
-
         const nodeHandle = ref && findNodeHandle(ref);
 
-        if (nodeHandle && scrollViewRef.current) {
-            UIManager.measure(nodeHandle, (_x, _y, _w, _h, _px, py) => {
-                scrollViewRef.current?.scrollTo({ y: py, animated: true });
-            });
+        if (nodeHandle && Platform.OS !== 'web') {
+            UIManager.measure(
+                nodeHandle,
+                (_x, _y, _w, _h, _px, py) => {
+                    scrollViewRef.current?.scrollTo({ y: py, animated: true });
+                }
+            );
+        } else if (Platform.OS === 'web') {
+            const element = document.getElementById(`section-${letter}`);
+            element?.scrollIntoView({ behavior: 'smooth' });
         }
-
     };
 
     const renderEventCard = (event: Event) => (
@@ -97,7 +103,56 @@ export default function HostsScreen() {
         groupedByLetter[letter].push([host, events]);
     });
 
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖÆ'.split('');
+    const renderContent = () => (
+        <>
+            <View style={styles.header}>
+                <Text style={styles.title}>Events by Host</Text>
+                <TouchableOpacity onPress={toggleMenu}>
+                    <Text style={styles.menuIcon}>☰</Text>
+                </TouchableOpacity>
+            </View>
+
+            {Object.entries(groupedByLetter)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([letter, hosts]) => {
+                    if (Platform.OS === 'web') {
+                        return (
+                            <div key={letter} id={`section-${letter}`} style={styles.section as any}>
+                                <Text style={styles.sectionHeader}>{letter}</Text>
+                                {hosts
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([host, events]) => (
+                                        <View key={host}>
+                                            <Text style={styles.subHeader}>{host}</Text>
+                                            {events.map(renderEventCard)}
+                                        </View>
+                                    ))}
+                            </div>
+                        );
+                    } else {
+                        return (
+                            <View
+                                key={letter}
+                                ref={(ref: View | null) => {
+                                    sectionRefs.current[letter] = ref;
+                                }}
+                                style={styles.section}
+                            >
+                                <Text style={styles.sectionHeader}>{letter}</Text>
+                                {hosts
+                                    .sort(([a], [b]) => a.localeCompare(b))
+                                    .map(([host, events]) => (
+                                        <View key={host}>
+                                            <Text style={styles.subHeader}>{host}</Text>
+                                            {events.map(renderEventCard)}
+                                        </View>
+                                    ))}
+                            </View>
+                        );
+                    }
+                })}
+        </>
+    );
 
     return (
         <ImageBackground source={bgImage} style={styles.background} resizeMode="cover">
@@ -112,36 +167,15 @@ export default function HostsScreen() {
                     </ScrollView>
                 </View>
 
-                <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
-                    <View style={styles.header}>
-                        <Text style={styles.title}>Events by Host</Text>
-                        <TouchableOpacity onPress={toggleMenu}>
-                            <Text style={styles.menuIcon}>☰</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {Object.entries(groupedByLetter)
-                        .sort(([a], [b]) => a.localeCompare(b))
-                        .map(([letter, hosts]) => (
-                            <View
-                                key={letter}
-                                style={styles.section}
-                                ref={ref => {
-                                    sectionRefs.current[letter] = ref;
-                                }}
-                            >
-                                <Text style={styles.sectionHeader}>{letter}</Text>
-                                {hosts
-                                    .sort(([a], [b]) => a.localeCompare(b))
-                                    .map(([host, events]) => (
-                                        <View key={host}>
-                                            <Text style={styles.subHeader}>{host}</Text>
-                                            {events.map(renderEventCard)}
-                                        </View>
-                                    ))}
-                            </View>
-                        ))}
-                </ScrollView>
+                {Platform.OS === 'web' ? (
+                    <div style={styles.webScrollContainer as any} ref={scrollViewRef}>
+                        {renderContent()}
+                    </div>
+                ) : (
+                    <ScrollView ref={scrollViewRef} contentContainerStyle={styles.container}>
+                        {renderContent()}
+                    </ScrollView>
+                )}
             </View>
         </ImageBackground>
     );
@@ -234,5 +268,11 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#333',
         marginTop: 4,
+    },
+    webScrollContainer: {
+        overflowY: 'scroll' as 'scroll',
+        height: '100%',
+        padding: 20,
+        paddingBottom: 100,
     },
 });
