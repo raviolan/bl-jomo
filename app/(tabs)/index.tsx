@@ -1,9 +1,12 @@
 import { useMenu } from '@/app/context/MenuContext';
+import { isEventLiked, toggleLikedEvent } from '@/app/context/likeStorage';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import dayjs from 'dayjs';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
+  Image,
   ImageBackground,
   ScrollView,
   StyleSheet,
@@ -12,7 +15,10 @@ import {
   View,
 } from 'react-native';
 import eventsRaw from '../../assets/data/events.json';
+import heartFilled from '../../assets/icons/heart-filled.png';
+import heart from '../../assets/icons/heart-outline.png';
 import bgImage from '../../assets/images/bg.jpg';
+
 
 const availableTags = [
   'Kid Friendly',
@@ -50,64 +56,65 @@ type GroupedEvents = {
 export default function TodayEvents() {
   const router = useRouter();
   const { toggleMenu } = useMenu();
+
   const [todayEvents, setTodayEvents] = useState<ParsedEvent[]>([]);
   const [tomorrowEvents, setTomorrowEvents] = useState<ParsedEvent[]>([]);
   const [otherFutureEvents, setOtherFutureEvents] = useState<GroupedEvents>({});
+  const [likedMap, setLikedMap] = useState<{ [id: string]: boolean }>({});
   const [title, setTitle] = useState('');
   const [expandedSections, setExpandedSections] = useState<{ [date: string]: boolean }>({});
   const [activeTags, setActiveTags] = useState<string[]>([]);
 
-  useEffect(() => {
-    const today = dayjs().startOf('day');
-    const tomorrow = today.add(1, 'day');
 
-    const parsedEvents: ParsedEvent[] = eventsRaw.map(event => ({
-      ...event,
-      parsedDate: dayjs(event.date),
-      parsedStartTime: dayjs(`${event.date} ${event.startTime}`, 'YYYY-MM-DD HH:mm'),
-    }));
+  useFocusEffect(
+    useCallback(() => {
+      const today = dayjs().startOf('day');
+      const tomorrow = today.add(1, 'day');
 
-    const sortByStartTime = (a: ParsedEvent, b: ParsedEvent) =>
-      a.parsedStartTime.diff(b.parsedStartTime);
+      const parsedEvents: ParsedEvent[] = eventsRaw.map(event => ({
+        ...event,
+        parsedDate: dayjs(event.date),
+        parsedStartTime: dayjs(`${event.date} ${event.startTime}`, 'YYYY-MM-DD HH:mm'),
+      }));
 
-    const todayList = parsedEvents
-      .filter(e => e.parsedDate.isSame(today, 'day'))
-      .sort(sortByStartTime);
+      const todayList = parsedEvents
+        .filter(e => e.parsedDate.isSame(today, 'day'))
+        .sort((a, b) => a.parsedStartTime.diff(b.parsedStartTime));
 
-    const tomorrowList = parsedEvents
-      .filter(e => e.parsedDate.isSame(tomorrow, 'day'))
-      .sort(sortByStartTime);
+      const tomorrowList = parsedEvents
+        .filter(e => e.parsedDate.isSame(tomorrow, 'day'))
+        .sort((a, b) => a.parsedStartTime.diff(b.parsedStartTime));
 
-    const futureEvents = parsedEvents
-      .filter(e => e.parsedDate.isAfter(tomorrow, 'day'));
+      const futureEvents = parsedEvents
+        .filter(e => e.parsedDate.isAfter(tomorrow, 'day'));
 
-    const grouped: GroupedEvents = {};
-    futureEvents.forEach(event => {
-      const dateKey = event.parsedDate.format('YYYY-MM-DD');
-      if (!grouped[dateKey]) grouped[dateKey] = [];
-      grouped[dateKey].push(event);
-    });
+      const grouped: GroupedEvents = {};
+      futureEvents.forEach(event => {
+        const dateKey = event.parsedDate.format('YYYY-MM-DD');
+        if (!grouped[dateKey]) grouped[dateKey] = [];
+        grouped[dateKey].push(event);
+      });
 
-    Object.keys(grouped).forEach(date => {
-      grouped[date].sort(sortByStartTime);
-    });
+      setTodayEvents(todayList);
+      setTomorrowEvents(tomorrowList);
+      setOtherFutureEvents(grouped);
+      setExpandedSections({ [tomorrow.format('YYYY-MM-DD')]: true });
 
-    setTodayEvents(todayList);
-    setTomorrowEvents(tomorrowList);
-    setOtherFutureEvents(grouped);
+      if (todayList.length > 0) setTitle("Welcome To Borderland");
+      else if (tomorrowList.length > 0) setTitle("Tomorrow's Events");
+      else setTitle("Upcoming Events");
 
-    setExpandedSections({
-      [tomorrow.format('YYYY-MM-DD')]: true,
-    });
+      const allEventIds = parsedEvents.map(e => e.id);
+      Promise.all(allEventIds.map(id => isEventLiked(id))).then(results => {
+        const map: { [id: string]: boolean } = {};
+        allEventIds.forEach((id, idx) => {
+          map[id] = results[idx];
+        });
+        setLikedMap(map);
+      });
+    }, [])
+  );
 
-    if (todayList.length > 0) {
-      setTitle("Today's Events");
-    } else if (tomorrowList.length > 0) {
-      setTitle("Tomorrow's Events");
-    } else {
-      setTitle('Upcoming Events');
-    }
-  }, []);
 
   const toggleTag = (tag: string) => {
     setActiveTags(prev =>
@@ -129,26 +136,40 @@ export default function TodayEvents() {
     }));
   };
 
+  const handleToggleLike = async (id: string) => {
+    await toggleLikedEvent(id);
+    setLikedMap(prev => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
+
   const renderEventCard = (item: ParsedEvent) => (
-    <TouchableOpacity
-      key={item.id}
-      onPress={() =>
-        router.push({
-          pathname: '/event/[id]',
-          params: { id: item.id },
-        })
-      }
-      style={styles.card}
-    >
-      <Text style={styles.event}>{item.event}</Text>
-      <Text>{item.startTime} - {item.endTime}</Text>
-      <Text>{item.location}</Text>
-    </TouchableOpacity>
+    <View key={item.id} style={styles.card}>
+      <TouchableOpacity
+        onPress={() =>
+          router.push({
+            pathname: '/event/[id]',
+            params: { id: item.id },
+          })
+        }
+      >
+        <Text style={styles.event}>{item.event}</Text>
+        <Text>{item.startTime} - {item.endTime}</Text>
+        <Text>{item.location}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity onPress={() => handleToggleLike(item.id)} style={styles.heartButton}>
+        <Image
+          source={likedMap[item.id] ? heartFilled : heart}
+          style={styles.heartIcon}
+        />
+      </TouchableOpacity>
+    </View>
   );
 
   return (
     <ImageBackground source={bgImage} style={styles.background} resizeMode="cover">
-      {/* 🍔 Header Bar */}
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
         <TouchableOpacity onPress={toggleMenu}>
@@ -179,10 +200,13 @@ export default function TodayEvents() {
             </TouchableOpacity>
           ))}
         </View>
+        <Text style={{ fontSize: 16, fontWeight: '700', marginVertical: 10, color: '#333' }}>
+          Here's what's happening today 👇
+        </Text>
 
         {filterByTags(todayEvents).map(renderEventCard)}
 
-        {/* Tomorrow Section */}
+        {/* Tomorrow */}
         {tomorrowEvents.length > 0 && (
           <View>
             <TouchableOpacity onPress={() =>
@@ -192,13 +216,12 @@ export default function TodayEvents() {
                 {expandedSections[dayjs().add(1, 'day').format('YYYY-MM-DD')] ? '▼' : '▶'} Tomorrow, {dayjs().add(1, 'day').format('MMMM D')}
               </Text>
             </TouchableOpacity>
-
             {expandedSections[dayjs().add(1, 'day').format('YYYY-MM-DD')] &&
               filterByTags(tomorrowEvents).map(renderEventCard)}
           </View>
         )}
 
-        {/* Future Sections */}
+        {/* Future */}
         {Object.entries(otherFutureEvents).map(([date, events]) => {
           const parsed = dayjs(date);
           const isExpanded = expandedSections[date] ?? false;
@@ -227,7 +250,6 @@ const styles = StyleSheet.create({
     height: '100%',
     resizeMode: 'cover',
     justifyContent: 'space-between',
-
   },
   header: {
     paddingTop: 60,
@@ -238,21 +260,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'transparent',
   },
-
   container: {
     paddingTop: 5,
     paddingHorizontal: 20,
     paddingBottom: 100,
     backgroundColor: 'transparent',
   },
-
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 20,
     color: '#222',
   },
-
   tagFilterContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -281,12 +300,6 @@ const styles = StyleSheet.create({
   tagTextActive: {
     color: '#fff',
   },
-
-  foldHeaderTouchable: {
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    marginVertical: 4,
-  },
   foldHeader: {
     fontSize: 20,
     fontWeight: '700',
@@ -299,33 +312,35 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
-
-  section: {
-    marginBottom: 40,
-  },
-
   card: {
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
+    position: 'relative',
   },
   event: {
     fontSize: 20,
     fontWeight: '700',
     color: '#000',
-    textShadowColor: 'rgba(255, 255, 255, 0.4)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
-    includeFontPadding: false,
-    textAlignVertical: 'center',
+  },
+  heartButton: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    padding: 5,
+    zIndex: 10,
+  },
+  heartIcon: {
+    width: 24,
+    height: 24,
+    resizeMode: 'contain',
   },
 });

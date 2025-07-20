@@ -50,6 +50,10 @@ export default function MenuDrawer() {
                         <TouchableOpacity onPress={() => navigate('host')} style={styles.item}>
                             <Text style={styles.text}>🎤 Host</Text>
                         </TouchableOpacity>
+
+                        <TouchableOpacity onPress={() => navigate('likes')} style={styles.item}>
+                            <Text style={styles.text}>♥️ Likes</Text>
+                        </TouchableOpacity>
                     </View>
                 </TouchableWithoutFeedback>
             </View>

@@ -1,8 +1,11 @@
+
 import { useMenu } from '@/app/context/MenuContext';
+import { useLikedEvents } from '@/app/hooks/useLikedEvents';
 import dayjs from 'dayjs';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+    Image,
     ImageBackground,
     ScrollView,
     StyleSheet,
@@ -11,6 +14,8 @@ import {
     View,
 } from 'react-native';
 import eventsRaw from '../../assets/data/events.json';
+import heartFilled from '../../assets/icons/heart-filled.png';
+import heart from '../../assets/icons/heart-outline.png';
 import bgImage from '../../assets/images/bg.jpg';
 
 type Event = {
@@ -35,6 +40,8 @@ type GroupedEvents = {
 export default function CategoriesScreen() {
     const router = useRouter();
     const { toggleMenu } = useMenu();
+    const { likedIds, toggleLike } = useLikedEvents();
+
     const [groupedByCategory, setGroupedByCategory] = useState<GroupedEvents>({});
     const [expandedCategories, setExpandedCategories] = useState<{ [key: string]: boolean }>({});
 
@@ -64,20 +71,30 @@ export default function CategoriesScreen() {
     };
 
     const renderEventCard = (event: Event) => (
-        <TouchableOpacity
-            key={event.id}
-            onPress={() =>
-                router.push({
-                    pathname: '/event/[id]',
-                    params: { id: event.id },
-                })
-            }
-            style={styles.card}
-        >
-            <Text style={styles.eventTitle}>{event.event}</Text>
-            <Text style={styles.eventDetail}>{event.date} | {event.startTime}</Text>
-            <Text style={styles.eventDetail}>{event.location}</Text>
-        </TouchableOpacity>
+        <View key={event.id} style={styles.card}>
+            <TouchableOpacity
+                onPress={() =>
+                    router.push({
+                        pathname: '/event/[id]',
+                        params: { id: event.id },
+                    })
+                }
+            >
+                <Text style={styles.eventTitle}>{event.event}</Text>
+                <Text style={styles.eventDetail}>{event.date} | {event.startTime}</Text>
+                <Text style={styles.eventDetail}>{event.location}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                onPress={() => toggleLike(event.id)}
+                style={styles.heartIconContainer}
+            >
+                <Image
+                    source={likedIds.includes(event.id) ? heartFilled : heart}
+                    style={styles.heartIcon}
+                />
+            </TouchableOpacity>
+        </View>
     );
 
     return (
@@ -166,6 +183,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 4,
+        position: 'relative',
     },
     eventTitle: {
         fontSize: 18,
@@ -176,5 +194,15 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#333',
         marginTop: 4,
+    },
+    heartIconContainer: {
+        position: 'absolute',
+        bottom: 10,
+        right: 10,
+    },
+    heartIcon: {
+        width: 24,
+        height: 24,
+        resizeMode: 'contain',
     },
 });

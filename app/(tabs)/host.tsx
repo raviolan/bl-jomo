@@ -1,9 +1,11 @@
 import { useMenu } from '@/app/context/MenuContext';
+import { useLikedEvents } from '@/app/hooks/useLikedEvents';
 import dayjs from 'dayjs';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
     findNodeHandle,
+    Image,
     ImageBackground,
     Platform,
     ScrollView,
@@ -15,6 +17,9 @@ import {
 } from 'react-native';
 import eventsRaw from '../../assets/data/events.json';
 import bgImage from '../../assets/images/bg.jpg';
+
+import heartFull from '../../assets/icons/heart-filled.png';
+import heartEmpty from '../../assets/icons/heart-outline.png';
 
 type Event = {
     id: string;
@@ -38,6 +43,8 @@ type GroupedEvents = {
 export default function HostsScreen() {
     const router = useRouter();
     const { toggleMenu } = useMenu();
+    const { likedIds, toggleLike, isLiked } = useLikedEvents();
+
     const [groupedByHost, setGroupedByHost] = useState<GroupedEvents>({});
     const scrollViewRef = useRef<any>(null);
     const sectionRefs = useRef<{ [letter: string]: View | null }>({});
@@ -67,12 +74,9 @@ export default function HostsScreen() {
         const nodeHandle = ref && findNodeHandle(ref);
 
         if (nodeHandle && Platform.OS !== 'web') {
-            UIManager.measure(
-                nodeHandle,
-                (_x, _y, _w, _h, _px, py) => {
-                    scrollViewRef.current?.scrollTo({ y: py, animated: true });
-                }
-            );
+            UIManager.measure(nodeHandle, (_x, _y, _w, _h, _px, py) => {
+                scrollViewRef.current?.scrollTo({ y: py, animated: true });
+            });
         } else if (Platform.OS === 'web') {
             const element = document.getElementById(`section-${letter}`);
             element?.scrollIntoView({ behavior: 'smooth' });
@@ -80,20 +84,26 @@ export default function HostsScreen() {
     };
 
     const renderEventCard = (event: Event) => (
-        <TouchableOpacity
-            key={event.id}
-            onPress={() =>
-                router.push({
-                    pathname: '/event/[id]',
-                    params: { id: event.id },
-                })
-            }
-            style={styles.card}
-        >
-            <Text style={styles.eventTitle}>{event.event}</Text>
-            <Text style={styles.eventDetail}>{event.date} | {event.startTime}</Text>
-            <Text style={styles.eventDetail}>{event.location}</Text>
-        </TouchableOpacity>
+        <View key={event.id} style={styles.card}>
+            <TouchableOpacity
+                onPress={() =>
+                    router.push({
+                        pathname: '/event/[id]',
+                        params: { id: event.id },
+                    })
+                }
+            >
+                <Text style={styles.eventTitle}>{event.event}</Text>
+                <Text style={styles.eventDetail}>{event.date} | {event.startTime}</Text>
+                <Text style={styles.eventDetail}>{event.location}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => toggleLike(event.id)} style={styles.heartIcon}>
+                <Image
+                    source={isLiked(event.id) ? heartFull : heartEmpty}
+                    style={{ width: 24, height: 24 }}
+                />
+            </TouchableOpacity>
+        </View>
     );
 
     const groupedByLetter: { [letter: string]: [string, Event[]][] } = {};
@@ -248,6 +258,7 @@ const styles = StyleSheet.create({
     },
     card: {
         padding: 16,
+        paddingBottom: 44,
         borderRadius: 12,
         marginBottom: 16,
         borderWidth: 1,
@@ -258,6 +269,14 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 8,
         elevation: 4,
+        position: 'relative',
+    },
+    heartIcon: {
+        position: 'absolute',
+        bottom: 12,
+        right: 12,
+        padding: 4,
+        zIndex: 10,
     },
     eventTitle: {
         fontSize: 18,

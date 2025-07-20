@@ -5,7 +5,7 @@ import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 
 import { MenuProvider } from '@/app/context/MenuContext';
 import MenuDrawer from '@/components/ui/MenuDrawer';
@@ -40,6 +40,41 @@ export default function TabLayout() {
             options={{
               title: 'Explore',
               tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+            }}
+          />
+          <Tabs.Screen
+            name="likes"
+            options={{
+              title: 'Likes',
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>❤️</Text>,
+            }}
+          />
+          <Tabs.Screen
+            name="search"
+            options={{
+              title: 'Search',
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>🔍</Text>,
+            }}
+          />
+          <Tabs.Screen
+            name="locations"
+            options={{
+              title: 'Places',
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>📍</Text>,
+            }}
+          />
+          <Tabs.Screen
+            name="categories"
+            options={{
+              title: 'Topics',
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>🗂️</Text>,
+            }}
+          />
+          <Tabs.Screen
+            name="host"
+            options={{
+              title: 'Host',
+              tabBarIcon: () => <Text style={{ fontSize: 20 }}>🎤</Text>,
             }}
           />
         </Tabs>
