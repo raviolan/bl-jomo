@@ -79,11 +79,12 @@ export default function TodayEvents() {
       const now = dayjs();
 
       const todayList = parsedEvents
-        .filter(e =>
-          e.parsedDate.isSame(today, 'day') &&
-          e.parsedStartTime.isAfter(now)
-        )
+        .filter(e => {
+          const eventEnd = dayjs(`${e.date} ${e.endTime}`, 'YYYY-MM-DD HH:mm');
+          return e.parsedDate.isSame(today, 'day') && eventEnd.isAfter(now);
+        })
         .sort((a, b) => a.parsedStartTime.diff(b.parsedStartTime));
+
 
       const tomorrowList = parsedEvents
         .filter(e => e.parsedDate.isSame(tomorrow, 'day'))
